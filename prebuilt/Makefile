@@ -1,4 +1,6 @@
-W32CROSS=i686-w64-mingw32-
+# port install i386-mingw32-gcc && port install i386-mingw32-binutils
+W32CROSS=i386-mingw32-
+#CFLAGS=-Os -DUNICODE
 CFLAGS=-Os
 STRIP=strip
 
@@ -9,18 +11,26 @@ SRC = ..
 
 SOURCES = urlader.c urlib.h urlib.c liblzf/lzfP.h liblzf/lzf_d.c
 SRCSOURCES = $(addprefix $(SRC)/,$(SOURCES))
-BINARIES = windows-x86 linux-x86 linux-amd64 darwin-x86
+BINARIES = windows-x86-unicode-gui windows-x86-unicode-cui
 
 all: $(BINARIES)
 
 clean:
 	rm -f $(BINARIES)
 
-windows-x86: $(SRCSOURCES) $(SRC)/urlader.ico
+windows-x86-unicode-gui: $(SRCSOURCES) $(SRC)/urlader.ico
 	echo 'MAINICON ICON "$(SRC)/urlader.ico"' >icon.rc
 	$(W32CROSS)windres icon.rc icon.o
 	rm icon.rc
 	$(W32CROSS)gcc $(CFLAGS) -mwin32 -mwindows -o $@ $< icon.o -lshell32 -lshlwapi
+	rm icon.o
+	$(W32CROSS)$(STRIP) $@
+
+windows-x86-unicode-cui: $(SRCSOURCES) $(SRC)/urlader.ico
+	echo 'MAINICON ICON "$(SRC)/urlader.ico"' >icon.rc
+	$(W32CROSS)windres icon.rc icon.o
+	rm icon.rc
+	$(W32CROSS)gcc $(CFLAGS) -mwin32 -o $@ $< icon.o -lshell32 -lshlwapi
 	rm icon.o
 	$(W32CROSS)$(STRIP) $@
 

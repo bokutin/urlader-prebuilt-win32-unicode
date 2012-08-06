@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <tchar.h>
 #include <time.h>
 
 #include "liblzf/lzf_d.c"
@@ -49,14 +50,14 @@
 /* some simple? dynamic memory management for paths might save ltos of ram */
 static u_handle pack_handle;
 static u_handle lock_handle;
-static char tmppath[MAX_PATH];
+static TCHAR tmppath[MAX_PATH];
 
 static int exe_argc;
 static u_dynbuf exe_argv;
 static u_dynbuf exe_args; /* actual arguments strings copied here */
 
 static void
-tmpdir (const char *dir)
+tmpdir (const TCHAR *dir)
 {
   static int cnt;
 
@@ -65,7 +66,7 @@ tmpdir (const char *dir)
 //      #ifdef _WIN32
 //        sprintf (tmppath, "%s/%x_%x.tmp", dir, (unsigned int)GetCurrentProcessId (), ++cnt);
 //      #else
-        sprintf (tmppath, "%s/t-%x_%x.tmp", dir, (unsigned int)getpid ()             , ++cnt);
+        _stprintf (tmppath, TEXT("%s/t-%x_%x.tmp"), dir, (unsigned int)getpid ()             , ++cnt);
 //      #endif
 
       if (!u_mkdir (tmppath))
@@ -74,10 +75,14 @@ tmpdir (const char *dir)
 }
 
 static void
-systemv (const char *const argv[])
+systemv (const TCHAR *const argv[])
 {
 #ifdef _WIN32
-  _spawnv (P_WAIT, argv [0], argv);
+  #ifdef UNICODE 
+    _wspawnv (P_WAIT, argv [0], argv);
+  #else
+    _spawnv (P_WAIT, argv [0], argv);
+  #endif
 #else
   pid_t pid = fork ();
 
@@ -96,12 +101,12 @@ systemv (const char *const argv[])
 }
 
 static void
-deltree (const char *path)
+deltree (const TCHAR *path)
 {
   #ifdef _WIN32
-    char buf[MAX_PATH * 2 + 64];
-    const char *argv[] = { getenv ("COMSPEC"), "/c", "rd", "/s", "/q", buf, 0 };
-    sprintf (buf, "\"%s\"", path);
+    TCHAR buf[MAX_PATH * 2 + 64];
+    const TCHAR *argv[] = { u_mbstotcs(getenv ("COMSPEC")), TEXT("/c"), TEXT("rd"), TEXT("/s"), TEXT("/q"), buf, 0 };
+    _stprintf (buf, TEXT("\"%s\""), path);
   #else
     const char *argv[] = { "/bin/rm", "-rf", path, 0 };
   #endif
@@ -186,7 +191,7 @@ pack_map (void)
 }
 
 static void
-add_arg (char *arg, unsigned int len)
+add_arg (TCHAR *arg, unsigned int len)
 {
   char *addr = u_dynbuf_append (&exe_args,  arg, len);
   u_dynbuf_append (&exe_argv, &addr, sizeof (addr));
@@ -200,9 +205,9 @@ load (void)
   u_set_exe_info ();
 
   if (u_chdir (exe_dir))
-    u_fatal ("unable to change to application data directory");
+    u_fatal (TEXT("unable to change to application data directory"));
 
-  u_handle h = u_open ("override");
+  u_handle h = u_open (TEXT("override"));
   if (u_valid (h))
     {
       u_handle oh = pack_handle;
@@ -213,7 +218,7 @@ load (void)
       if (pack_map ()
           && strcmp (exe_id , PACK_NAME) == 0
           && strcmp (exe_ver, PACK_DATA) <= 0)
-        u_setenv ("URLADER_OVERRIDE", "override");
+        u_setenv (TEXT("URLADER_OVERRIDE"), TEXT("override"));
       else
         {
           pack_unmap ();
@@ -232,9 +237,9 @@ load (void)
   for (;;)
     {
       if (pack_cur->type == T_ENV)
-        u_setenv (PACK_NAME, PACK_DATA);
+        u_setenv (u_mbstotcs(PACK_NAME), u_mbstotcs(PACK_DATA));
       else if (pack_cur->type == T_ARG)
-        add_arg (PACK_NAME, u_16 (pack_cur->namelen) + 1);
+        add_arg (u_mbstotcs(PACK_NAME), sizeof(TCHAR) * (u_16 (pack_cur->namelen) + 1));
       else
         break;
 
@@ -243,30 +248,30 @@ load (void)
  
 done_env_arg:
 
-  strcat (strcpy (tmppath, execdir), ".lck");
+  _tcscat (_tcscpy (tmppath, execdir), TEXT(".lck"));
   lock_handle = u_lock (tmppath, 0, 1);
   if (!lock_handle)
-    u_fatal ("unable to lock application instance");
+    u_fatal (TEXT("unable to lock application instance"));
 
-  if (access (execdir, F_OK))
+  if (_taccess (execdir, F_OK))
     {
       // does not exist yet, so unpack and move
       tmpdir (exe_dir);
 
       if (u_chdir (tmppath))
-        u_fatal ("unable to change to new instance directory");
+        u_fatal (TEXT("unable to change to new instance directory"));
 
       for (;;)
         {
           switch (pack_cur->type)
             {
               case T_DIR:
-                u_mkdir (PACK_NAME);
+                u_mkdir (u_mbstotcs(PACK_NAME));
                 break;
 
               case T_FILE:
                 {
-                  u_handle h = u_creat (PACK_NAME, pack_cur->flags & F_EXEC);
+                  u_handle h = u_creat (u_mbstotcs(PACK_NAME), pack_cur->flags & F_EXEC);
                   unsigned int dlen, len = u_32 (pack_cur->datalen);
                   char *data = PACK_DATA;
 
@@ -277,13 +282,13 @@ done_env_arg:
                         len  = dlen;
                       }
                     else
-                      u_fatal ("unable to uncompress file data - pack corrupted?");
+                      u_fatal (TEXT("unable to uncompress file data - pack corrupted?"));
 
                   if (!u_valid (h))
-                    u_fatal ("unable to unpack file from packfile - disk full?");
+                    u_fatal (TEXT("unable to unpack file from packfile - disk full?"));
 
                   if (u_write (h, data, len) != len)
-                    u_fatal ("unable to unpack file from packfile - disk full?");
+                    u_fatal (TEXT("unable to unpack file from packfile - disk full?"));
 
                   u_fsync (h);
                   u_close (h);
@@ -299,7 +304,7 @@ done_env_arg:
 
 done:
       if (u_chdir (datadir))
-        u_fatal ("unable to change to data directory");
+        u_fatal (TEXT("unable to change to data directory"));
 
       u_sync ();
 
@@ -311,9 +316,9 @@ done:
   u_close (pack_handle);
 
   if (u_chdir (execdir))
-    u_fatal ("unable to change to application instance directory");
+    u_fatal (TEXT("unable to change to application instance directory"));
 
-  u_setenv ("URLADER_VERSION", URLADER_VERSION);
+  u_setenv (TEXT("URLADER_VERSION"), URLADER_VERSION);
 
 #if 0
   // yes, this is overkill
@@ -333,28 +338,28 @@ execute (void)
 {
   char *null = 0;
   u_dynbuf_append (&exe_argv, &null, sizeof (null));
-  systemv ((const char *const *)exe_argv.addr);
+  systemv ((const TCHAR *const *)exe_argv.addr);
 }
 
 // this argc/argv is without argv [0]
 static void
-doit (int argc, char *argv[])
+doit (int argc, TCHAR *argv[])
 {
   int i;
 
-  u_setenv ("URLADER_CURRDIR", currdir);
+  u_setenv (TEXT("URLADER_CURRDIR"), currdir);
 
   u_set_datadir ();
   u_mkdir (datadir);
 
   if (!pack_map ())
-    u_fatal ("unable to map pack file - executable corrupted?");
+    u_fatal (TEXT("unable to map pack file - executable corrupted?"));
 
   load ();
 
   while (argc--)
     {
-      add_arg (*argv, strlen (*argv) + 1);
+      add_arg (*argv, sizeof(TCHAR) * (_tcslen (*argv) + 1));
       ++argv;
     }
 
@@ -363,20 +368,21 @@ doit (int argc, char *argv[])
 
 #ifdef _WIN32
 
-int APIENTRY
-WinMain (HINSTANCE hI, HINSTANCE hP, LPSTR argv, int command_show)
+#include "mingw-unicode-main/mingw-unicode-gui.c"
+int WINAPI
+_tWinMain(HINSTANCE hI, HINSTANCE hP, LPTSTR argv, int command_show)
 {
   if (!GetModuleFileName (hI, tmppath, sizeof (tmppath)))
-    u_fatal ("unable to find executable pack");
+    u_fatal (TEXT("unable to find executable pack"));
 
-  u_setenv ("URLADER_EXEPATH", tmppath);
+  u_setenv (TEXT("URLADER_EXEPATH"), tmppath);
 
   pack_handle = u_open (tmppath);
   if (!u_valid (pack_handle))
-    u_fatal ("unable to open executable pack");
+    u_fatal (TEXT("unable to open executable pack"));
 
   if (!GetCurrentDirectory (sizeof (currdir), currdir))
-    strcpy (currdir, ".");
+    _tcscpy (currdir, TEXT("."));
 
   doit (1, &argv);
 

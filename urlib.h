@@ -37,8 +37,8 @@
 #ifndef URLIB_H_
 #define URLIB_H_
 
-#define URLADER "urlader"
-#define URLADER_VERSION "1.0" /* a decimal number, not a version string */
+#define URLADER TEXT("urlader")
+#define URLADER_VERSION TEXT("1.0") /* a decimal number, not a version string */
 
 enum
 {

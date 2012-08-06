@@ -1,7 +1,9 @@
 # port install i386-mingw32-gcc && port install i386-mingw32-binutils
 W32CROSS=i386-mingw32-
-#CFLAGS=-Os -DUNICODE
-CFLAGS=-Os
+#CFLAGS=-Os
+#CFLAGS=-Os -D_UNICODE -DUNICODE -Wl,-subsystem,windows
+#CFLAGS=-Os -D_UNICODE -DUNICODE -municode
+CFLAGS=-Os -D_UNICODE -DUNICODE
 STRIP=strip
 
 #CFLAGS=-g

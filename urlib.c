@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <tchar.h>
 
 #ifdef _WIN32
 
@@ -124,17 +125,17 @@
 #define u_16(ptr) (((ptr)[0] << 8) | (ptr)[1])
 #define u_32(ptr) (((ptr)[0] << 24) | ((ptr)[1] << 16) | ((ptr)[2] << 8) | (ptr)[3])
 
-static char currdir[MAX_PATH];
-static char datadir[MAX_PATH];  // %AppData%/urlader
-static char exe_dir[MAX_PATH];  // %AppData%/urlader/EXE_ID
-static char execdir[MAX_PATH];  // %AppData%/urlader/EXE_ID/EXE_VER
-static char exe_id[MAX_PATH];
-static char exe_ver[MAX_PATH];
+static TCHAR currdir[MAX_PATH];
+static TCHAR datadir[MAX_PATH];  // %AppData%/urlader
+static TCHAR exe_dir[MAX_PATH];  // %AppData%/urlader/EXE_ID
+static TCHAR execdir[MAX_PATH];  // %AppData%/urlader/EXE_ID/EXE_VER
+static char  exe_id[MAX_PATH];
+static char  exe_ver[MAX_PATH];
 
 /////////////////////////////////////////////////////////////////////////////
 
 static void
-u_fatal (const char *msg)
+u_fatal (const TCHAR *msg)
 {
 #ifdef _WIN32
   MessageBox (0, msg, URLADER, 0);
@@ -176,7 +177,7 @@ u_malloc (unsigned int size)
 #endif
 
   if (!addr)
-    u_fatal ("memory allocation failure, aborting.");
+    u_fatal (TEXT("memory allocation failure, aborting."));
 
   return addr;
 }
@@ -276,7 +277,7 @@ u_set_datadir (void)
 {
 #ifdef _WIN32
   if (SHGetFolderPath (0, CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, datadir) != S_OK)
-    u_fatal ("unable to find application data directory");
+    u_fatal (TEXT("unable to find application data directory"));
 
   u_mkdir (datadir);
   u_append (datadir, URLADER);
@@ -299,30 +300,44 @@ u_set_datadir (void)
   sprintf (datadir, "%s/.%s", home, URLADER);
 #endif
 
-  u_setenv ("URLADER_DATADIR", datadir);
+  u_setenv (TEXT("URLADER_DATADIR"), datadir);
+}
+
+static TCHAR*
+u_mbstotcs (const char *mbs) {
+  #ifdef _UNICODE
+    TCHAR *tcs = (TCHAR *)malloc( sizeof(TCHAR) * strlen(mbs) + 1 );
+    int ret;
+
+    ret = mbstowcs(tcs, mbs, MB_CUR_MAX*(strlen(mbs)+1));
+
+    return tcs;
+  #else
+    return mbs;
+  #endif
 }
 
 static void
 u_set_exe_info (void)
 {
-  strcpy (exe_dir, datadir);
-  u_append (exe_dir, exe_id);
+  _tcscpy (exe_dir, datadir);
+  u_append (exe_dir, u_mbstotcs(exe_id));
   u_mkdir (exe_dir);
 
-  strcpy (execdir, exe_dir);
-  u_append (execdir, "i-");
-  strcat (execdir, exe_ver);
+  _tcscpy (execdir, exe_dir);
+  u_append (execdir, TEXT("i-"));
+  _tcscat (execdir, u_mbstotcs(exe_ver));
 
-  u_setenv ("URLADER_EXECDIR", execdir);
-  u_setenv ("URLADER_EXE_ID" , exe_id);
-  u_setenv ("URLADER_EXE_DIR", exe_dir);
-  u_setenv ("URLADER_EXE_VER", exe_ver);
+  u_setenv (TEXT("URLADER_EXECDIR"), execdir);
+  u_setenv (TEXT("URLADER_EXE_ID") , u_mbstotcs(exe_id));
+  u_setenv (TEXT("URLADER_EXE_DIR"), exe_dir);
+  u_setenv (TEXT("URLADER_EXE_VER"), u_mbstotcs(exe_ver));
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 static u_handle
-u_lock (const char *path, int excl, int dowait)
+u_lock (const TCHAR *path, int excl, int dowait)
 {
   u_handle h;
 

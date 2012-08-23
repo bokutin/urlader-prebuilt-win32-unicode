@@ -317,6 +317,17 @@ u_mbstotcs (const char *mbs) {
   #endif
 }
 
+static TCHAR*
+u_wcstotcs (const char *wcs, unsigned int namelen) {
+    char *tcs = (char *)malloc( sizeof(char) * namelen + 2 );
+
+    memcpy(tcs, wcs, namelen);
+    tcs[namelen]   = '\0';
+    tcs[namelen+1] = '\0';
+
+    return (TCHAR *)tcs;
+}
+
 static void
 u_set_exe_info (void)
 {

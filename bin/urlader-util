@@ -93,6 +93,19 @@ sub ent {
 
    warn "add record type $type, path $name\n" if $verbose >= 2;
 
+   if ($^O eq 'MSWin32' and $type == Urlader::T_DIR or $type == Urlader::T_FILE) {
+       require Encode;
+       require Win32;
+
+       if (utf8::is_utf8($name)) {
+           $name = Encode::encode("utf16le", $name);
+       }
+       else {
+           my $cp_num = Win32::GetACP() || die;
+           Encode::from_to($name, "cp$cp_num", "utf16le");
+       }
+   }
+
    my $ent = pack "CCnN Z* a*",
       $type,
       $flags,

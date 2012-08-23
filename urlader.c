@@ -266,12 +266,12 @@ done_env_arg:
           switch (pack_cur->type)
             {
               case T_DIR:
-                u_mkdir (u_mbstotcs(PACK_NAME));
+                u_mkdir (u_wcstotcs(PACK_NAME, u_16 (pack_cur->namelen)));
                 break;
 
               case T_FILE:
                 {
-                  u_handle h = u_creat (u_mbstotcs(PACK_NAME), pack_cur->flags & F_EXEC);
+                  u_handle h = u_creat (u_wcstotcs(PACK_NAME, u_16 (pack_cur->namelen)), pack_cur->flags & F_EXEC);
                   unsigned int dlen, len = u_32 (pack_cur->datalen);
                   char *data = PACK_DATA;
 

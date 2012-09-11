@@ -314,7 +314,7 @@ rename:
 	 // http://stackoverflow.com/questions/1753209/deletefile-fails-on-recently-closed-file
 	 if ( GetLastError() == ERROR_ACCESS_DENIED && mx_rename_attempt > 0 ) {
 	    Sleep(100);
-	    mx_deletion_attempt--;
+	    mx_rename_attempt--;
 	    goto rename;
 	 }
 	 else {

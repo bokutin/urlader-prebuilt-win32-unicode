@@ -308,8 +308,19 @@ done:
 
       u_sync ();
 
-      if (u_rename (tmppath, execdir))
-        deltree (tmppath); // if move fails, delete new, assume other process created it independently
+      int mx_rename_attempt = 10;
+rename:
+      if (u_rename (tmppath, execdir)) {
+	 // http://stackoverflow.com/questions/1753209/deletefile-fails-on-recently-closed-file
+	 if ( GetLastError() == ERROR_ACCESS_DENIED && mx_rename_attempt > 0 ) {
+	    Sleep(100);
+	    mx_deletion_attempt--;
+	    goto rename;
+	 }
+	 else {
+            deltree (tmppath); // if move fails, delete new, assume other process created it independently
+	 }
+      }
     }
 
   pack_unmap ();
